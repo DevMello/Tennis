@@ -119,21 +119,39 @@ void startWiFiWebServer() {
   WiFi.softAP(ssid, password); // Start WiFi AP
   Serial.println("WiFi AP started.");
   
-  // Serve the file
+  // Serve the file with CORS headers
   server.on("/shots.csv", HTTP_GET, []() {
     File file = SD.open("/shots.csv", FILE_READ);
     if (!file) {
       server.send(404, "text/plain", "File not found");
       return;
     }
-    
+
+    // Add CORS headers
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader("Access-Control-Allow-Methods", "GET");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+
     server.streamFile(file, "text/csv");
     file.close();
+  });
+
+  // Handle CORS preflight requests
+  server.onNotFound([]() {
+    if (server.method() == HTTP_OPTIONS) {
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.sendHeader("Access-Control-Allow-Methods", "GET");
+      server.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+      server.send(204);  // Respond with 'No Content' for CORS preflight
+    } else {
+      server.send(404, "text/plain", "Not Found");
+    }
   });
 
   server.begin(); // Start the server
   Serial.println("HTTP server started.");
 }
+
 
 void stopWiFiWebServer() {
   server.stop(); // Stop the server
